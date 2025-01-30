@@ -1,46 +1,47 @@
 import speech_recognition as sr
 from pydub import AudioSegment
+import os
 
-# Converter arquivos .ogg para .wav
-def convert_to_wav(file_path):
-    audio = AudioSegment.from_ogg(file_path)
-    wav_path = file_path.replace(".ogg", ".wav")
-    audio.export(wav_path, format="wav")
-    return wav_path
+def extract_audio(file_path):
+    """Extrai o áudio de um arquivo de vídeo e converte para FLAC com qualidade otimizada."""
+    flac_path = file_path.replace(".mkv", ".flac")
+    
+    # Carregar o áudio do arquivo original
+    audio = AudioSegment.from_file(file_path)
+    
+    # Converter para 16kHz e 16-bit PCM para reduzir tamanho
+    audio = audio.set_frame_rate(16000).set_sample_width(2).set_channels(1)
+    
+    # Exportar como FLAC
+    audio.export(flac_path, format="flac")
+    
+    print(f"Áudio convertido: {flac_path} ({round(os.path.getsize(flac_path) / (1024 * 1024), 2)} MB)")
+    return flac_path
 
-# Inicializar o reconhecedor
-recognizer = sr.Recognizer()
-
-# Função para transcrever o arquivo de áudio
 def transcribe_audio(file_path):
-    wav_path = convert_to_wav(file_path)
-    with sr.AudioFile(wav_path) as source:
-        audio = recognizer.record(source)
+    """Transcreve o áudio usando a API do Google."""
+    recognizer = sr.Recognizer()
+    flac_path = extract_audio(file_path)
+    
+    with sr.AudioFile(flac_path) as source:
+        audio = recognizer.record(source)  # Lê todo o arquivo
+    
     try:
-        # Utilizando a API de reconhecimento de fala do Google
         text = recognizer.recognize_google(audio, language='pt-BR')
         return text
     except sr.UnknownValueError:
         return "Google Web Speech API não conseguiu entender o áudio"
     except sr.RequestError as e:
-        return f"Não foi possível solicitar resultados da Google Web Speech API; {e}"
+        return f"Erro na conexão com Google API: {e}"
 
-# Lista de arquivos de áudio
+# Lista de arquivos de vídeo/áudio para transcrição
 audio_files = [
-    "Como são feitos os ajustes.ogg",
-    "De quanto em quanto tempo eu preciso ir fazer quiropraxia?.ogg",
-    "É normal sentir desconforto depois da sessão de quiro?.ogg",
-    "Endereço.ogg",
-    "Meios de Pagamento.ogg",
-    "O que é a terapia ILIB? Tem contra indicação?.ogg",
-    "Pessoa que tem hipercifose, escoliose ou lordose.ogg",
-    "Primeira sessão.ogg",
-    "Roupas e exames.ogg"
+    "audio.mkv",  # Adicione mais arquivos se necessário
 ]
 
-# Transcrevendo cada arquivo de áudio
+# Processar e transcrever os arquivos
 transcriptions = {file: transcribe_audio(file) for file in audio_files}
 
-# Exibindo as transcrições
+# Exibir resultados
 for file, transcription in transcriptions.items():
     print(f"{file}: {transcription}\n")
